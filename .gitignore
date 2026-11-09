@@ -1,0 +1,7 @@
+node_modules/
+.aws-sam/
+.env
+fred-*.json
+fred-*.json.tmp
+samconfig.toml
+*.log

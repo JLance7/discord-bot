@@ -1,0 +1,20 @@
+{
+  "name": "fred-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "register": "node --env-file=.env scripts/register.js",
+    "start": "node --env-file=.env local.js"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "3.1164.0"
+  },
+  "devDependencies": {
+    "discord.js": "14.28.1"
+  }
+}

@@ -1,0 +1,88 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Fred Discord interactions bot
+
+Parameters:
+  DiscordPublicKey:
+    Type: String
+    AllowedPattern: '[0-9A-Fa-f]{64}'
+    Description: Public key from Discord Developer Portal
+  DiscordGuildId:
+    Type: String
+    AllowedPattern: '[0-9]{17,20}'
+  PairUserIds:
+    Type: String
+    AllowedPattern: '[0-9]{17,20},[0-9]{17,20}'
+    Description: Two distinct Discord user IDs separated by a comma
+  NextDate:
+    Type: String
+    Default: ''
+    AllowedPattern: '([0-9]{4}-[0-9]{2}-[0-9]{2})?'
+    Description: Optional special date in YYYY-MM-DD format
+
+Resources:
+  InteractionsApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: '$default'
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 8
+        ThrottlingRateLimit: 4
+  SharedData:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expires_at
+        Enabled: true
+  Bot:
+    Type: AWS::Serverless::Function
+    Properties:
+      Runtime: nodejs22.x
+      Handler: handler.handler
+      CodeUri: .
+      MemorySize: 256
+      Timeout: 5
+      Environment:
+        Variables:
+          DISCORD_PUBLIC_KEY: !Ref DiscordPublicKey
+          DISCORD_GUILD_ID: !Ref DiscordGuildId
+          PAIR_USER_IDS: !Ref PairUserIds
+          NEXT_DATE: !Ref NextDate
+          TABLE_NAME: !Ref SharedData
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:Query
+                - dynamodb:BatchGetItem
+              Resource: !GetAtt SharedData.Arn
+      Events:
+        Discord:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref InteractionsApi
+            Path: /discord/interactions
+            Method: POST
+  BotLogs:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${Bot}'
+      RetentionInDays: 14
+
+Outputs:
+  InteractionsEndpoint:
+    Description: Paste into Discord's Interactions Endpoint URL field
+    Value: !Sub 'https://${InteractionsApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/discord/interactions'
