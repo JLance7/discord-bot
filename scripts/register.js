@@ -11,7 +11,20 @@ async function main() {
     body: JSON.stringify(command),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!result.ok) throw new Error(`Discord rejected registration (HTTP ${result.status}). Check app ID, guild ID, token, and server installation.`);
+  if (!result.ok) {
+    const error = await result.json().catch(() => null);
+    const code = Number.isInteger(error?.code) ? error.code : null;
+    const hints = {
+      10004: "Copy the server ID again and check Fred is installed there.",
+      20012: "Check that the bot token and application ID both belong to Fred.",
+      50001: "Check the server ID and install Fred into that server with applications.commands.",
+      50013: "Check Fred's server installation and command scope.",
+      50026: "Reauthorize Fred with the applications.commands scope.",
+    };
+    const status = code === null ? `HTTP ${result.status}` : `HTTP ${result.status}, Discord code ${code}`;
+    const hint = hints[code] || "Check app ID, server ID, token, and server installation.";
+    throw new Error(`Discord rejected registration (${status}). ${hint}`);
+  }
   console.log("Registered /together in your configured server.");
 }
 
